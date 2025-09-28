@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .modal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: #000;
+      display: none;
+      flex-direction: column;
+    }
+
+    .modal.show { display: flex; }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 20px;
+      background: #111;
+      border-bottom: 1px solid #333;
+    }
+
+    .header h1 {
+      font-size: 14px;
+      font-weight: 400;
+      color: #888;
+    }
+
+    .close {
+      background: none;
+      border: none;
+      color: #666;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 3px;
+      transition: all 0.2s ease;
+    }
+
+    .close:hover { color: #fff; background: #333; }
+
+    .content {
+      flex: 1;
+      position: relative;
+      background: #fff;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #fff;
+    }
+
+    .loading {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 20px; height: 20px;
+      border: 2px solid #333;
+      border-top: 2px solid #666;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+    .error {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: #111;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      text-align: center;
+      gap: 20px;
+    }
+
+    .error h3 {
+      font-size: 16px;
+      color: #666;
+      font-weight: 400;
+    }
+
+    .error p {
+      font-size: 13px;
+      color: #444;
+      max-width: 300px;
+      line-height: 1.4;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      background: #111;
+      border-top: 1px solid #333;
+    }
+
+    .btn {
+      background: #222;
+      border: 1px solid #444;
+      color: #ccc;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: inherit;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 60px;
+      justify-content: center;
+    }
+
+    .btn:hover {
+      background: #333;
+      border-color: #555;
+      color: #fff;
+    }
+
+    .btn:active {
+      background: #1a1a1a;
+      transform: translateY(1px);
+    }
+
+    .btn.primary {
+      background: #333;
+      border-color: #555;
+      color: #fff;
+    }
+
+    .btn.primary:hover {
+      background: #444;
+      border-color: #666;
+    }
+
+    .site-url {
+      font-size: 11px;
+      color: #666;
+      flex: 1;
+      text-align: center;
+      margin: 0 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Human simulation overlay */
+    .sim-overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .sim-cursor {
+      position: absolute;
+      width: 12px; height: 12px;
+      background: #4a9eff;
+      border-radius: 50%;
+      transform: translate(-6px, -6px);
+      opacity: 0;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 8px rgba(74, 158, 255, 0.5);
+    }
+
+    .sim-cursor.active { opacity: 0.8; }
+    .sim-cursor.click {
+      background: #ff4a4a;
+      transform: translate(-6px, -6px) scale(0.7);
+      box-shadow: 0 0 12px rgba(255, 74, 74, 0.7);
+    }
+
+    .sim-scroll {
+      position: absolute;
+      right: 8px; top: 50%;
+      transform: translateY(-50%);
+      width: 4px; height: 60px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .sim-scroll.active { opacity: 1; }
+
+    .sim-thumb {
+      width: 100%; height: 12px;
+      background: #4a9eff;
+      border-radius: 2px;
+      transition: transform 0.5s ease;
+    }
+
+    .fallback {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      height: 100vh;
+      text-align: center;
+      gap: 24px;
+    }
+
+    .fallback p {
+      color: #666;
+      font-size: 14px;
+      max-width: 300px;
+      line-height: 1.5;
+    }
+
+    .fallback button {
+      background: #222;
+      border: 1px solid #444;
+      color: #ccc;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: inherit;
+      transition: all 0.2s ease;
+    }
+
+    .fallback button:hover {
+      background: #333;
+      border-color: #555;
+      color: #fff;
+    }
+
+    @media (max-width: 768px) {
+      .header { padding: 8px 12px; }
+      .controls { padding: 8px 12px; gap: 6px; }
+      .btn { padding: 6px 8px; font-size: 11px; min-width: 50px; }
+      .site-url { font-size: 10px; margin: 0 8px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="modal" id="modal">
+    <div class="header">
+      <h1>Paldo Script</h1>
+      <button class="close" onclick="closeModal()">×</button>
+    </div>
+
+    <div class="content">
+      <div class="loading" id="loading"></div>
+      <iframe id="iframe" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+
+      <div class="sim-overlay">
+        <div class="sim-cursor" id="cursor"></div>
+        <div class="sim-scroll" id="scroll">
+          <div class="sim-thumb" id="thumb"></div>
+        </div>
+      </div>
+
+      <div class="error" id="error">
+        <h3>Site Blocked</h3>
+        <p>This website cannot be embedded for security reasons.</p>
+        <button class="btn primary" onclick="openExternal()">Open Externally</button>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn" onclick="navigate(-1)">‹ Prev</button>
+      <div class="site-url" id="url">Loading...</div>
+      <button class="btn primary" onclick="openExternal()">Go</button>
+      <button class="btn" onclick="navigate(1)">Next ›</button>
+    </div>
+  </div>
+
+  <div class="fallback" id="fallback">
+    <button onclick="openModal()">Enter</button>
+  </div>
+
+  <script>
+    const sites = [
+      'https://www.revenuecpmgate.com/m9u1han8?key=46269a8607048e5a3a5681aeca96ce22',
+      'https://www.revenuecpmgate.com/nrur27tu5?key=ba162dd6b7bbd31f6d0b98847588c3ac'
+    ];
+
+    let currentIndex = 0;
+    let isLoading = false;
+    let simulating = true;
+    let simInterval;
+    let scrollPos = 0;
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    function updateUrl() {
+      const url = document.getElementById('url');
+      try {
+        const hostname = new URL(sites[currentIndex]).hostname;
+        url.textContent = hostname.replace('www.', '');
+      } catch {
+        url.textContent = sites[currentIndex];
+      }
+    }
+
+    function showLoading(show) {
+      document.getElementById('loading').style.display = show ? 'block' : 'none';
+    }
+
+    function showError(show) {
+      document.getElementById('error').style.display = show ? 'flex' : 'none';
+      document.getElementById('iframe').style.display = show ? 'none' : 'block';
+    }
+
+    function loadSite(index) {
+      if (isLoading) return;
+
+      isLoading = true;
+      const iframe = document.getElementById('iframe');
+
+      showError(false);
+      showLoading(true);
+      updateUrl();
+
+      iframe.src = '';
+
+      setTimeout(() => {
+        iframe.src = sites[index];
+        document.getElementById('modal').classList.add('show');
+
+        iframe.onload = () => {
+          showLoading(false);
+          isLoading = false;
+          startSimulation();
+        };
+
+        iframe.onerror = () => {
+          showLoading(false);
+          showError(true);
+          isLoading = false;
+        };
+
+        // Fallback for blocked sites
+        setTimeout(() => {
+          if (isLoading) {
+            showLoading(false);
+            showError(true);
+            isLoading = false;
+          }
+        }, 5000);
+      }, 100);
+    }
+
+    function navigate(direction) {
+      if (isLoading) return;
+      currentIndex = (currentIndex + direction + sites.length) % sites.length;
+      loadSite(currentIndex);
+    }
+
+    function openExternal() {
+      window.open(sites[currentIndex], '_blank');
+    }
+
+    function openModal() {
+      document.getElementById('fallback').style.display = 'none';
+      loadSite(currentIndex);
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('show');
+      document.getElementById('fallback').style.display = 'flex';
+      document.getElementById('iframe').src = '';
+      stopSimulation();
+    }
+
+    // Human simulation
+    function simulateMouse() {
+      const cursor = document.getElementById('cursor');
+      const content = document.querySelector('.content');
+      const rect = content.getBoundingClientRect();
+
+      const x = Math.random() * (rect.width - 40) + 20;
+      const y = Math.random() * (rect.height - 40) + 20;
+
+      cursor.style.left = x + 'px';
+      cursor.style.top = y + 'px';
+      cursor.classList.add('active');
+
+      setTimeout(() => cursor.classList.remove('active'), 2000);
+    }
+
+    function simulateClick() {
+      simulateMouse();
+      setTimeout(() => {
+        const cursor = document.getElementById('cursor');
+        cursor.classList.add('click');
+        setTimeout(() => cursor.classList.remove('click'), 300);
+      }, 1000);
+    }
+
+    function simulateScroll() {
+      const scroll = document.getElementById('scroll');
+      const thumb = document.getElementById('thumb');
+
+      scroll.classList.add('active');
+      scrollPos = (scrollPos + Math.random() * 40 + 10) % 100;
+      thumb.style.transform = `translateY(${scrollPos * 0.48}px)`;
+
+      setTimeout(() => scroll.classList.remove('active'), 1500);
+    }
+
+    function runSimulation() {
+      const actions = [simulateMouse, simulateClick, simulateScroll];
+      const weights = [50, 25, 25];
+      const total = weights.reduce((a, b) => a + b, 0);
+      let random = Math.random() * total;
+
+      for (let i = 0; i < actions.length; i++) {
+        if (random < weights[i]) {
+          actions[i]();
+          break;
+        }
+        random -= weights[i];
+      }
+    }
+
+    function startSimulation() {
+      if (simInterval) clearInterval(simInterval);
+      if (simulating) {
+        simInterval = setInterval(runSimulation, Math.random() * 6000 + 2000);
+      }
+    }
+
+    function stopSimulation() {
+      if (simInterval) {
+        clearInterval(simInterval);
+        simInterval = null;
+      }
+    }
+
+    // Keyboard controls
+    document.addEventListener('keydown', (e) => {
+      if (!document.getElementById('modal').classList.contains('show')) return;
+
+      switch(e.key) {
+        case 'ArrowLeft': case 'a': case 'A':
+          e.preventDefault(); navigate(-1); break;
+        case 'ArrowRight': case 'd': case 'D':
+          e.preventDefault(); navigate(1); break;
+        case 'Enter': case ' ':
+          e.preventDefault(); openExternal(); break;
+        case 'Escape':
+          e.preventDefault(); closeModal(); break;
+      }
+    });
+
+    // Auto-navigation
+    setInterval(() => {
+      if (document.getElementById('modal').classList.contains('show')) {
+        navigate(1);
+      }
+    }, 45000);
+
+    // Initialize
+    window.onload = () => {
+      shuffle(sites);
+      loadSite(currentIndex);
+    };
+  </script>
+</body>
+</html>
